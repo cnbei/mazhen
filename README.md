@@ -47,6 +47,40 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## 给朋友的快速配置（不泄露 API Key）
+
+1. 克隆仓库并安装依赖
+
+```bash
+git clone https://github.com/cnbei/mazhen.git
+cd mazhen
+npm install
+```
+
+2. 复制环境变量模板并填写他自己的 key（不要用你的 key）
+
+```bash
+cp .env.example .env.local
+```
+
+3. 编辑 `.env.local`，至少配置以下内容
+
+```bash
+OPENAI_API_KEY=他自己的key
+OPENAI_BASE_URL=可选，例如 https://ai.novacode.top/v1
+OPENAI_MODEL=可选，例如 gpt-4.1-mini
+```
+
+4. 本地启动
+
+```bash
+npm run dev
+```
+
+注意：
+- `.env.local` 已在 `.gitignore` 中，不会被提交到 GitHub。
+- 不要把任何 key 写入源码文件或提交到仓库。
+
 ## Scripts
 
 - `npm run dev` starts the local dev server
