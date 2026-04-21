@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>English -> German Translator</title>
+    <style>
+      :root {
+        --bg: #f5f7fa;
+        --panel: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --line: #dbe2ea;
+        --brand: #0f766e;
+        --brand-soft: #ccfbf1;
+        --danger: #b91c1c;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: var(--text);
+        background: linear-gradient(120deg, #edf2f7, #f8fafc 40%, #ecfeff);
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 24px auto;
+        padding: 0 16px;
+      }
+      .header {
+        margin-bottom: 16px;
+      }
+      .title {
+        margin: 0;
+        font-size: 24px;
+      }
+      .subtitle {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 190px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px;
+        resize: vertical;
+        font-size: 15px;
+        line-height: 1.6;
+      }
+      textarea:focus {
+        outline: 2px solid #99f6e4;
+        border-color: #2dd4bf;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .examples {
+        margin: 12px 0;
+      }
+      .chip {
+        border: 1px solid #cbd5e1;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        background: #f8fafc;
+        cursor: pointer;
+      }
+      .btn {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: var(--brand);
+        color: #fff;
+      }
+      .btn-primary:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .btn-ghost {
+        border: 1px solid #cbd5e1;
+        background: #fff;
+      }
+      .result {
+        min-height: 190px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 10px;
+        padding: 12px;
+        line-height: 1.8;
+        font-size: 17px;
+      }
+      .muted { color: var(--muted); }
+      .span {
+        background: var(--brand-soft);
+        border-bottom: 1px dotted #0d9488;
+        border-radius: 4px;
+        padding: 0 2px;
+        cursor: pointer;
+      }
+      .span.active {
+        background: #99f6e4;
+        box-shadow: 0 0 0 1px #0d9488 inset;
+      }
+      .error {
+        margin-top: 10px;
+        color: var(--danger);
+        font-size: 13px;
+      }
+      .panel {
+        margin-top: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px;
+        background: #fcfffe;
+      }
+      .cand {
+        width: 100%;
+        text-align: left;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        border-radius: 8px;
+        padding: 8px 10px;
+        margin-bottom: 8px;
+        cursor: pointer;
+      }
+      .cand-title {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .cand-note {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .badges {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .badge {
+        font-size: 12px;
+        border-radius: 999px;
+        padding: 4px 8px;
+        border: 1px solid #bae6fd;
+        background: #f0f9ff;
+      }
+      @media (max-width: 900px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="header">
+        <h1 class="title">English -> German Translator (MVP)</h1>
+        <p class="subtitle">先翻译，再点选德语词组查看替换建议并一键应用。</p>
+      </header>
+
+      <div class="grid">
+        <section class="card">
+          <label for="source">English Source</label>
+          <textarea id="source" placeholder="Type or paste English text..."></textarea>
+          <div class="examples row" id="examples"></div>
+          <button class="btn btn-primary" id="translateBtn" disabled>Translate</button>
+          <div class="error" id="leftError"></div>
+        </section>
+
+        <section class="card">
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+            <label style="margin:0;">German Translation</label>
+            <button class="btn btn-ghost" id="restoreBtn" disabled>Restore original</button>
+          </div>
+          <div class="result" id="result"><span class="muted">No translation yet.</span></div>
+          <div class="error" id="rightError"></div>
+
+          <div class="panel" id="suggestPanel" style="display:none;">
+            <div id="selectedLabel" class="muted" style="margin-bottom:8px;"></div>
+            <div id="candidates"></div>
+          </div>
+
+          <div class="badges" id="appliedBadges"></div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const examples = [
+        "We need a more practical solution for this problem.",
+        "Could you send me the final report by tomorrow morning?",
+        "The product looks promising, but the pricing is too aggressive.",
+        "I appreciate your help and your patience during this process.",
+        "Let's postpone the launch until we confirm legal compliance.",
+        "This feature improves reliability without adding much complexity.",
+        "Our goal is to make onboarding smoother for new users.",
+        "Please keep the tone professional but still friendly."
+      ];
+
+      const state = {
+        sourceText: "",
+        originalTranslation: "",
+        currentTranslation: "",
+        selectableSpans: [],
+        selectedSpan: null,
+        appliedReplacements: [],
+        loading: false
+      };
+
+      const el = {
+        source: document.getElementById("source"),
+        examples: document.getElementById("examples"),
+        translateBtn: document.getElementById("translateBtn"),
+        restoreBtn: document.getElementById("restoreBtn"),
+        result: document.getElementById("result"),
+        leftError: document.getElementById("leftError"),
+        rightError: document.getElementById("rightError"),
+        suggestPanel: document.getElementById("suggestPanel"),
+        selectedLabel: document.getElementById("selectedLabel"),
+        candidates: document.getElementById("candidates"),
+        appliedBadges: document.getElementById("appliedBadges")
+      };
+
+      function setLoading(loading) {
+        state.loading = loading;
+        el.translateBtn.disabled = loading || !el.source.value.trim();
+        el.translateBtn.textContent = loading ? "Translating..." : "Translate";
+      }
+
+      function clearErrors() {
+        el.leftError.textContent = "";
+        el.rightError.textContent = "";
+      }
+
+      function renderExamples() {
+        el.examples.innerHTML = "";
+        examples.forEach((text) => {
+          const btn = document.createElement("button");
+          btn.className = "chip";
+          btn.textContent = text;
+          btn.type = "button";
+          btn.addEventListener("click", () => {
+            el.source.value = text;
+            el.source.dispatchEvent(new Event("input"));
+          });
+          el.examples.appendChild(btn);
+        });
+      }
+
+      function renderAppliedBadges() {
+        el.appliedBadges.innerHTML = "";
+        state.appliedReplacements.forEach((item) => {
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.textContent = `${item.original_text} -> ${item.replacement_text}`;
+          el.appliedBadges.appendChild(badge);
+        });
+      }
+
+      function renderResult() {
+        const text = state.currentTranslation;
+        if (!text) {
+          el.result.innerHTML = '<span class="muted">No translation yet.</span>';
+          return;
+        }
+
+        const spans = [...state.selectableSpans].sort((a, b) => a.start - b.start);
+        let cursor = 0;
+        el.result.innerHTML = "";
+
+        spans.forEach((span) => {
+          if (span.start > cursor) {
+            el.result.appendChild(document.createTextNode(text.slice(cursor, span.start)));
+          }
+          const btn = document.createElement("span");
+          btn.className = "span" + (state.selectedSpan && state.selectedSpan.id === span.id ? " active" : "");
+          btn.textContent = text.slice(span.start, span.end);
+          btn.title = span.rationale || "Click to see replacements";
+          btn.addEventListener("click", () => onSpanClick(span));
+          el.result.appendChild(btn);
+          cursor = span.end;
+        });
+
+        if (cursor < text.length) {
+          el.result.appendChild(document.createTextNode(text.slice(cursor)));
+        }
+      }
+
+      async function postJson(url, payload) {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Request failed");
+        }
+        return data;
+      }
+
+      async function onTranslate() {
+        clearErrors();
+        const source = el.source.value.trim();
+        if (!source) return;
+
+        setLoading(true);
+        try {
+          const data = await postJson("/api/translate", { source_text: source });
+          state.sourceText = data.source_text;
+          state.originalTranslation = data.translated_text;
+          state.currentTranslation = data.translated_text;
+          state.selectableSpans = data.selectable_spans || [];
+          state.appliedReplacements = data.applied_replacements || [];
+          state.selectedSpan = null;
+          el.restoreBtn.disabled = false;
+          el.suggestPanel.style.display = "none";
+          renderResult();
+          renderAppliedBadges();
+        } catch (err) {
+          el.leftError.textContent = err.message;
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function onSpanClick(span) {
+        clearErrors();
+        state.selectedSpan = span;
+        renderResult();
+        el.suggestPanel.style.display = "block";
+        el.selectedLabel.textContent = `Selected: ${span.text}`;
+        el.candidates.innerHTML = '<span class="muted">Loading suggestions...</span>';
+
+        try {
+          const data = await postJson("/api/replacements/suggest", {
+            source_text: state.sourceText,
+            translated_text: state.currentTranslation,
+            selected_span: span,
+            applied_replacements: state.appliedReplacements
+          });
+
+          const list = data.replacement_candidates || [];
+          if (!list.length) {
+            el.candidates.innerHTML = '<span class="muted">No suggestions returned.</span>';
+            return;
+          }
+
+          el.candidates.innerHTML = "";
+          list.forEach((candidate) => {
+            const btn = document.createElement("button");
+            btn.className = "cand";
+            btn.type = "button";
+            btn.innerHTML = `<div class="cand-title">${candidate.replacement_text}</div><div class="cand-note">${candidate.usage_note}</div>`;
+            btn.addEventListener("click", () => onApply(candidate));
+            el.candidates.appendChild(btn);
+          });
+        } catch (err) {
+          el.rightError.textContent = err.message;
+          el.candidates.innerHTML = "";
+        }
+      }
+
+      async function onApply(candidate) {
+        clearErrors();
+        try {
+          const data = await postJson("/api/replacements/apply", {
+            source_text: state.sourceText,
+            current_translation: state.currentTranslation,
+            selected_span: state.selectedSpan,
+            selected_replacement: candidate,
+            applied_replacements: state.appliedReplacements
+          });
+
+          state.currentTranslation = data.translated_text;
+          state.selectableSpans = data.selectable_spans || [];
+          state.appliedReplacements = data.applied_replacements || [];
+          state.selectedSpan = null;
+
+          el.suggestPanel.style.display = "none";
+          renderResult();
+          renderAppliedBadges();
+        } catch (err) {
+          el.rightError.textContent = err.message;
+        }
+      }
+
+      function onRestore() {
+        if (!state.originalTranslation) return;
+        state.currentTranslation = state.originalTranslation;
+        state.selectedSpan = null;
+        el.suggestPanel.style.display = "none";
+        renderResult();
+      }
+
+      el.source.addEventListener("input", () => {
+        el.translateBtn.disabled = state.loading || !el.source.value.trim();
+      });
+      el.translateBtn.addEventListener("click", onTranslate);
+      el.restoreBtn.addEventListener("click", onRestore);
+
+      renderExamples();
+    </script>
+  </body>
+</html>
