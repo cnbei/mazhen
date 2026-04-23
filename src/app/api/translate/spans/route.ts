@@ -2,61 +2,41 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 import { getGlossaryProject } from "@/lib/glossary/catalog";
-import { translateRequestSchema } from "@/lib/openai/schemas";
-import { buildTranslationCacheKey, getCachedTranslation, setCachedTranslation } from "@/lib/translation/cache";
-import { translateTextFast } from "@/lib/translation/service";
-import { findTmCandidates, upsertTmEntry } from "@/lib/translation/tm-memory";
+import { translateSpansRequestSchema } from "@/lib/openai/schemas";
+import { buildTranslationCacheKey, getCachedSpans, setCachedSpans } from "@/lib/translation/cache";
+import { deriveSelectableSpans } from "@/lib/translation/service";
 
 export async function POST(request: Request) {
   try {
-    const payload = translateRequestSchema.parse(await request.json());
+    const payload = translateSpansRequestSchema.parse(await request.json());
     const projectDetail = payload.project_id ? getGlossaryProject(payload.project_id) : null;
     const effectiveGlossaryTerms = payload.glossary_terms ?? projectDetail?.terms ?? [];
     const cacheKey = buildTranslationCacheKey({
-      sourceText: payload.source_text,
+      sourceText: `${payload.source_text}\n${payload.translated_text}`,
       sourceLang: payload.source_lang,
       targetLang: payload.target_lang,
       projectId: payload.project_id,
     });
-    const cached = getCachedTranslation<{
-      source_text: string;
+    const cached = getCachedSpans<{
       translated_text: string;
-      selectable_spans: [];
-      applied_replacements: [];
+      selectable_spans: unknown[];
     }>(cacheKey);
 
     if (cached) {
       return NextResponse.json(cached);
     }
 
-    const tmCandidates = payload.project_id
-      ? findTmCandidates(payload.project_id, payload.source_text, 5)
-      : [];
-
-    const result = await translateTextFast({
+    const result = await deriveSelectableSpans({
       sourceText: payload.source_text,
+      translatedText: payload.translated_text,
       sourceLang: payload.source_lang,
       targetLang: payload.target_lang,
       projectId: payload.project_id,
-      projectTone: projectDetail?.project.tone,
       glossaryTerms: effectiveGlossaryTerms,
-      tmCandidates,
     });
 
-    if (payload.project_id) {
-      upsertTmEntry(payload.project_id, payload.source_text, result.translated_text);
-    }
-
-    const responseBody = {
-      source_text: result.source_text,
-      translated_text: result.translated_text,
-      selectable_spans: [],
-      applied_replacements: [],
-    };
-
-    setCachedTranslation(cacheKey, responseBody);
-
-    return NextResponse.json(responseBody);
+    setCachedSpans(cacheKey, result);
+    return NextResponse.json(result);
   } catch (error) {
     return handleRouteError(error);
   }
@@ -64,7 +44,14 @@ export async function POST(request: Request) {
 
 function handleRouteError(error: unknown) {
   if (error instanceof ZodError) {
-    const requestFieldSet = new Set(["source_text", "source_lang", "target_lang", "project_id", "glossary_terms"]);
+    const requestFieldSet = new Set([
+      "source_text",
+      "translated_text",
+      "source_lang",
+      "target_lang",
+      "project_id",
+      "glossary_terms",
+    ]);
     const isRequestValidationError = error.issues.every((issue) =>
       requestFieldSet.has(String(issue.path[0] ?? "")),
     );
@@ -77,7 +64,7 @@ function handleRouteError(error: unknown) {
     }
 
     return NextResponse.json(
-      { error: "请提供有效的原文、语言参数和项目参数。" },
+      { error: "请提供有效的原文、译文和语言参数。" },
       { status: 400 },
     );
   }

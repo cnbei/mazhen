@@ -62,6 +62,57 @@ textarea {
   max-width: 720px;
 }
 
+.hero-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.server-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+
+.server-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.server-status--ok {
+  color: var(--accent-strong);
+  background: rgba(13, 111, 99, 0.1);
+  border-color: rgba(13, 111, 99, 0.16);
+}
+
+.server-status--degraded {
+  color: #8a5a14;
+  background: rgba(196, 143, 36, 0.12);
+  border-color: rgba(196, 143, 36, 0.2);
+}
+
+.server-status--down {
+  color: var(--error);
+  background: rgba(154, 45, 45, 0.1);
+  border-color: rgba(154, 45, 45, 0.16);
+}
+
+.server-status-note {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
 .hero-kicker,
 .eyebrow,
 .examples-title {
@@ -167,6 +218,14 @@ textarea {
 
 .glossary-row--action {
   justify-content: space-between;
+}
+
+.glossary-inline-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.92rem;
 }
 
 .glossary-row--upload {
@@ -382,6 +441,10 @@ textarea {
   color: var(--muted);
 }
 
+.translation-state--progress {
+  align-content: center;
+}
+
 .translation-state--error {
   color: var(--error);
 }
@@ -477,6 +540,66 @@ textarea {
   background: rgba(13, 111, 99, 0.08);
   padding: 12px 14px;
   color: var(--accent-strong);
+}
+
+.status-banner--secondary {
+  background: rgba(34, 28, 21, 0.06);
+  color: var(--muted);
+}
+
+.debug-progress {
+  width: min(100%, 480px);
+  border: 1px solid rgba(13, 111, 99, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 14px;
+  text-align: left;
+  box-shadow: 0 14px 36px rgba(71, 52, 28, 0.08);
+}
+
+.debug-progress--compact {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  box-shadow: none;
+}
+
+.debug-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.debug-progress-header strong {
+  color: var(--accent-strong);
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+.debug-progress-track {
+  height: 8px;
+  overflow: hidden;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: rgba(13, 111, 99, 0.1);
+}
+
+.debug-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent) 0%, #2da895 100%);
+  transition: width 260ms ease;
+}
+
+.debug-progress-detail {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
 }
 
 .inline-error {

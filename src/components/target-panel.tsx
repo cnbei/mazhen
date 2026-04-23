@@ -17,9 +17,17 @@ type TargetPanelProps = {
   isMatchingGlossary: boolean;
   error: string | null;
   isTranslating: boolean;
+  isLoadingSpans: boolean;
   isLoadingSuggestions: boolean;
   isApplying: boolean;
   statusMessage: string | null;
+  progress: {
+    active: boolean;
+    stage: "idle" | "preparing" | "waiting-model" | "received" | "analyzing-spans" | "done" | "failed";
+    label: string;
+    detail: string;
+    elapsedMs: number;
+  };
   onSelectSpan: (span: SelectableSpan) => void;
   onApplyCandidate: (candidate: ReplacementCandidate) => void;
   onRestore: () => void;
@@ -37,9 +45,11 @@ export function TargetPanel({
   isMatchingGlossary,
   error,
   isTranslating,
+  isLoadingSpans,
   isLoadingSuggestions,
   isApplying,
   statusMessage,
+  progress,
   onSelectSpan,
   onApplyCandidate,
   onRestore,
@@ -47,6 +57,7 @@ export function TargetPanel({
   onTargetLangChange,
 }: TargetPanelProps) {
   const parts = translatedText ? sliceTranslationWithSpans(translatedText, spans) : [];
+  const progressPercent = getProgressPercent(progress.stage, progress.elapsedMs);
   const exactGlossaryTargets = new Set(
     glossaryMatches
       .filter((item) => item.match_type === "exact")
@@ -84,9 +95,13 @@ export function TargetPanel({
       <div className="translation-shell">
         <div className="translation-card">
           {isTranslating ? (
-            <div className="translation-state">
-              <span className="spinner" />
-              <p>正在生成自然{getLanguageLabel(targetLang)}译文...</p>
+            <div className="translation-state translation-state--progress">
+              <TranslationProgressCard
+                label={progress.label || `正在生成自然${getLanguageLabel(targetLang)}译文`}
+                detail={progress.detail}
+                elapsedMs={progress.elapsedMs}
+                percent={progressPercent}
+              />
             </div>
           ) : translatedText ? (
             <>
@@ -112,6 +127,22 @@ export function TargetPanel({
               </div>
 
               {statusMessage ? <p className="status-banner">{statusMessage}</p> : null}
+
+              {progress.active ? (
+                <TranslationProgressCard
+                  label={progress.label}
+                  detail={progress.detail}
+                  elapsedMs={progress.elapsedMs}
+                  percent={progressPercent}
+                  compact
+                />
+              ) : null}
+
+              {isLoadingSpans && translatedText ? (
+                <p className="status-banner status-banner--secondary">
+                  译文已生成，正在分析可编辑词组...
+                </p>
+              ) : null}
 
               {error ? <p className="inline-error">{error}</p> : null}
 
@@ -174,4 +205,63 @@ export function TargetPanel({
       </div>
     </section>
   );
+}
+
+function TranslationProgressCard({
+  label,
+  detail,
+  elapsedMs,
+  percent,
+  compact = false,
+}: {
+  label: string;
+  detail: string;
+  elapsedMs: number;
+  percent: number;
+  compact?: boolean;
+}) {
+  return (
+    <div className={cn("debug-progress", compact && "debug-progress--compact")} aria-live="polite">
+      <div className="debug-progress-header">
+        <span>{label}</span>
+        <strong>{formatElapsed(elapsedMs)}</strong>
+      </div>
+      <div className="debug-progress-track">
+        <div className="debug-progress-bar" style={{ width: `${percent}%` }} />
+      </div>
+      <p className="debug-progress-detail">{detail}</p>
+    </div>
+  );
+}
+
+function getProgressPercent(stage: TargetPanelProps["progress"]["stage"], elapsedMs: number) {
+  if (stage === "done") {
+    return 100;
+  }
+
+  if (stage === "failed") {
+    return 100;
+  }
+
+  if (stage === "analyzing-spans") {
+    return Math.min(96, 76 + elapsedMs / 1200);
+  }
+
+  if (stage === "received") {
+    return 72;
+  }
+
+  if (stage === "waiting-model") {
+    return Math.min(68, 18 + elapsedMs / 420);
+  }
+
+  if (stage === "preparing") {
+    return Math.min(16, 6 + elapsedMs / 250);
+  }
+
+  return 0;
+}
+
+function formatElapsed(elapsedMs: number) {
+  return `${Math.max(0, elapsedMs / 1000).toFixed(1)}s`;
 }

@@ -1,8 +1,11 @@
 import {
   applyReplacementResultSchema,
+  fastTranslationResultSchema,
   suggestReplacementResultSchema,
+  translationSpansResultSchema,
   translationResultSchema,
 } from "@/lib/openai/schemas";
+import { getFastModelName } from "@/lib/openai/client";
 import { runStructuredRequest } from "@/lib/openai/request";
 import {
   buildApplyReplacementSystemPrompt,
@@ -13,14 +16,20 @@ import {
   buildSuggestUserPrompt,
 } from "@/lib/prompts/suggest-replacements";
 import {
+  buildSpanExtractionSystemPrompt,
+  buildSpanExtractionUserPrompt,
   buildTranslateSystemPrompt,
+  buildTranslateFastSystemPrompt,
+  buildTranslateFastUserPrompt,
   buildTranslateUserPrompt,
 } from "@/lib/prompts/translate";
 import { normalizeSpans } from "@/lib/translation/mapping";
 import type {
   AppliedReplacement,
+  FastTranslationResult,
   ReplacementCandidate,
   SelectableSpan,
+  TranslationSpansResult,
   TranslationResult,
 } from "@/types/translation";
 import type { GlossaryTerm, ProjectTone } from "@/types/glossary";
@@ -64,6 +73,82 @@ export async function translateEnglishToGerman({
     translated_text: result.translated_text.trim(),
     selectable_spans: repairSpans(result.translated_text.trim(), result.selectable_spans),
     applied_replacements: [],
+  };
+}
+
+export async function translateTextFast({
+  sourceText,
+  sourceLang,
+  targetLang,
+  projectId,
+  projectTone,
+  glossaryTerms,
+  tmCandidates,
+}: {
+  sourceText: string;
+  sourceLang: AppLanguageCode;
+  targetLang: AppLanguageCode;
+  projectId?: string;
+  projectTone?: ProjectTone;
+  glossaryTerms?: GlossaryTerm[];
+  tmCandidates?: TmCandidate[];
+}): Promise<FastTranslationResult> {
+  const result = await runStructuredRequest({
+    schema: fastTranslationResultSchema,
+    schemaName: "fast_translation_result",
+    systemPrompt: buildTranslateFastSystemPrompt({ projectTone, sourceLang, targetLang }),
+    userPrompt: buildTranslateFastUserPrompt({
+      sourceText,
+      sourceLang,
+      targetLang,
+      projectId,
+      glossaryTerms,
+      tmCandidates,
+    }),
+    model: getFastModelName(),
+    performanceProfile: "fast",
+  });
+
+  return {
+    source_text: sourceText,
+    translated_text: result.translated_text.trim(),
+  };
+}
+
+export async function deriveSelectableSpans({
+  sourceText,
+  translatedText,
+  sourceLang,
+  targetLang,
+  projectId,
+  glossaryTerms,
+}: {
+  sourceText: string;
+  translatedText: string;
+  sourceLang: AppLanguageCode;
+  targetLang: AppLanguageCode;
+  projectId?: string;
+  glossaryTerms?: GlossaryTerm[];
+}): Promise<TranslationSpansResult> {
+  const result = await runStructuredRequest({
+    schema: translationSpansResultSchema,
+    schemaName: "translation_spans_result",
+    systemPrompt: buildSpanExtractionSystemPrompt({ sourceLang, targetLang }),
+    userPrompt: buildSpanExtractionUserPrompt({
+      sourceText,
+      translatedText,
+      sourceLang,
+      targetLang,
+      projectId,
+      glossaryTerms,
+    }),
+    model: getFastModelName(),
+    performanceProfile: "fast",
+  });
+
+  return {
+    translated_text: translatedText,
+    selectable_spans: repairSpans(translatedText, result.selectable_spans),
   };
 }
 

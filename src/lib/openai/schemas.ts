@@ -50,6 +50,27 @@ export const translationResultSchema = z.object({
     .default([]),
 });
 
+export const fastTranslationResultSchema = z.object({
+  source_text: z.string().optional().default(""),
+  translated_text: z.string().optional().default(""),
+});
+
+export const translationSpansResultSchema = z.object({
+  translated_text: z.string().optional().default(""),
+  selectable_spans: z
+    .array(
+      z.object({
+        id: z.string().optional().default(""),
+        text: z.string().optional().default(""),
+        start: z.number().int().min(0).optional().default(0),
+        end: z.number().int().min(0).optional().default(0),
+        rationale: z.string().nullable().optional().default(null),
+      }),
+    )
+    .optional()
+    .default([]),
+});
+
 export const suggestReplacementResultSchema = z.object({
   selected_span_id: z.string(),
   replacement_candidates: z.array(replacementCandidateSchema).max(5),
@@ -63,6 +84,23 @@ export const applyReplacementResultSchema = z.object({
 
 export const translateRequestSchema = z.object({
   source_text: z.string().trim().min(1).max(3000),
+  source_lang: languageCodeSchema.optional().default("zh"),
+  target_lang: languageCodeSchema.optional().default("de"),
+  project_id: z.string().trim().min(1).max(120).optional(),
+  glossary_terms: z
+    .array(
+      z.object({
+        source: z.string().trim().min(1).max(200),
+        target: z.string().trim().min(1).max(300),
+      }),
+    )
+    .max(200)
+    .optional(),
+});
+
+export const translateSpansRequestSchema = z.object({
+  source_text: z.string().trim().min(1).max(3000),
+  translated_text: z.string().trim().min(1).max(3000),
   source_lang: languageCodeSchema.optional().default("zh"),
   target_lang: languageCodeSchema.optional().default("de"),
   project_id: z.string().trim().min(1).max(120).optional(),

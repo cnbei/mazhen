@@ -33,11 +33,12 @@ cp .env.example .env.local
 ```bash
 OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_MODEL=gpt-4.1-mini
+OPENAI_FAST_MODEL=gpt-4.1-mini
 OPENAI_BASE_URL=
 OPENAI_TIMEOUT_MS=25000
 ```
 
-If you use an OpenAI-compatible provider such as MiniMax, set `OPENAI_BASE_URL` and a provider-supported model name.
+If you use an OpenAI-compatible provider such as MiniMax, set `OPENAI_BASE_URL` and a provider-supported model name. For lower latency, you can keep a stronger `OPENAI_MODEL` for advanced flows and set `OPENAI_FAST_MODEL` to a cheaper/faster model for the first translation pass.
 
 ## Run locally
 

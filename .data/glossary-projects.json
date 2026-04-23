@@ -1,0 +1,156 @@
+{
+  "projects": [
+    {
+      "id": "fishing-journey",
+      "name": "Fishing Journey",
+      "description": "休闲海钓题材项目术语",
+      "tone": "du",
+      "terms": [
+        {
+          "source": "1号船",
+          "target": "Schiff Nr. 1"
+        },
+        {
+          "source": "2号船",
+          "target": "Schiff Nr. 2"
+        },
+        {
+          "source": "2星",
+          "target": "2 Sterne"
+        },
+        {
+          "source": "B&W海钓公司",
+          "target": "B&W Meeresangeln GmbH"
+        },
+        {
+          "source": "一击必中",
+          "target": "Ein Schlag, ein Fang"
+        },
+        {
+          "source": "一起兜风",
+          "target": "Zusammen auf Tour"
+        },
+        {
+          "source": "一起跳牵手舞",
+          "target": "Tanz Hand in Hand"
+        },
+        {
+          "source": "七日签到",
+          "target": "7-Tage-Anmeldung"
+        },
+        {
+          "source": "七星瓢虫",
+          "target": "Siebenpunkt-Marienkaefer"
+        },
+        {
+          "source": "万能碎片",
+          "target": "Universalscherbe"
+        },
+        {
+          "source": "万能食材",
+          "target": "Universalzutat"
+        },
+        {
+          "source": "丁鳜",
+          "target": "Schleie"
+        }
+      ]
+    },
+    {
+      "id": "fashion-chronicle",
+      "name": "Fashion Chronicle",
+      "description": "换装与潮流题材项目术语",
+      "tone": "du",
+      "terms": [
+        {
+          "source": "《潮流纪》",
+          "target": "<i>Chronik der Trends</i>"
+        },
+        {
+          "source": "《风物志》",
+          "target": "<i>Reisebuch der Kultur</i>"
+        },
+        {
+          "source": "《秘林寻踪》",
+          "target": "<i>Auf den Pfaden des Urwalds</i>"
+        },
+        {
+          "source": "《星星公主的冒险》",
+          "target": "<i>Sternenprinzessins Abenteuer</i>"
+        },
+        {
+          "source": "一分光明",
+          "target": "Ein Funken Licht"
+        },
+        {
+          "source": "一字眉",
+          "target": "Monobraue"
+        },
+        {
+          "source": "一脚蹬",
+          "target": "Slip-ons"
+        },
+        {
+          "source": "七分裤",
+          "target": "7/8-Hose"
+        },
+        {
+          "source": "万圣节",
+          "target": "Halloween"
+        },
+        {
+          "source": "万尼亚",
+          "target": "Vanya"
+        }
+      ]
+    },
+    {
+      "id": "space-event",
+      "name": "Space Event",
+      "description": "社群活动与道具命名术语",
+      "tone": "ihr",
+      "terms": [
+        {
+          "source": "UFO",
+          "target": "UFO"
+        },
+        {
+          "source": "1周年庆",
+          "target": "1. Jubilaeum"
+        },
+        {
+          "source": "2星",
+          "target": "2 Sterne"
+        },
+        {
+          "source": "万能碎片",
+          "target": "Universalscherbe"
+        },
+        {
+          "source": "万能食材",
+          "target": "Universalzutat"
+        },
+        {
+          "source": "万尼亚",
+          "target": "Vanya"
+        }
+      ]
+    },
+    {
+      "id": "custom-合金弹头",
+      "name": "合金弹头",
+      "description": "用户上传术语库",
+      "tone": "neutral",
+      "terms": [
+        {
+          "source": "alloy warhead",
+          "target": "Legierungssprengkopf"
+        },
+        {
+          "source": "energy cell",
+          "target": "Energiezelle"
+        }
+      ]
+    }
+  ]
+}

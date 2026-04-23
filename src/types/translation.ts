@@ -26,6 +26,16 @@ export type TranslationResult = {
   applied_replacements: AppliedReplacement[];
 };
 
+export type FastTranslationResult = {
+  source_text: string;
+  translated_text: string;
+};
+
+export type TranslationSpansResult = {
+  translated_text: string;
+  selectable_spans: SelectableSpan[];
+};
+
 export type SuggestReplacementResult = {
   selected_span_id: string;
   replacement_candidates: ReplacementCandidate[];

@@ -16,15 +16,21 @@ type SourcePanelProps = {
   onLoadGlossary: () => void;
   onGlossaryFileChange: (file: File | null) => void;
   onUploadGlossary: () => void;
+  onExportGlossary: () => void;
   isLoadingProjects: boolean;
   isLoadingGlossary: boolean;
   isUploadingGlossary: boolean;
+  isExportingGlossary: boolean;
   glossaryLoadedCount: number;
   selectedGlossaryFileName: string | null;
   examples: string[];
   isLoading: boolean;
   sourceLang: AppLanguageCode;
   onSourceLangChange: (language: AppLanguageCode) => void;
+  uploadMode: "merge" | "replace";
+  onUploadModeChange: (mode: "merge" | "replace") => void;
+  autoTranslateEnabled: boolean;
+  onAutoTranslateChange: (enabled: boolean) => void;
 };
 
 export function SourcePanel({
@@ -39,18 +45,23 @@ export function SourcePanel({
   onLoadGlossary,
   onGlossaryFileChange,
   onUploadGlossary,
+  onExportGlossary,
   isLoadingProjects,
   isLoadingGlossary,
   isUploadingGlossary,
+  isExportingGlossary,
   glossaryLoadedCount,
   selectedGlossaryFileName,
   examples,
   isLoading,
   sourceLang,
   onSourceLangChange,
+  uploadMode,
+  onUploadModeChange,
+  autoTranslateEnabled,
+  onAutoTranslateChange,
 }: SourcePanelProps) {
-  const disabled =
-    value.trim().length === 0 || isLoading || !selectedProjectId || glossaryLoadedCount === 0;
+  const disabled = value.trim().length === 0 || isLoading || !selectedProjectId;
 
   return (
     <section className="panel source-panel">
@@ -122,6 +133,25 @@ export function SourcePanel({
             {glossaryLoadedCount > 0 ? `已加载 ${glossaryLoadedCount} 条术语` : "未加载术语库"}
           </span>
         </div>
+        <div className="glossary-row glossary-row--action">
+          <label className="glossary-inline-option">
+            <input
+              type="checkbox"
+              checked={autoTranslateEnabled}
+              onChange={(event) => onAutoTranslateChange(event.target.checked)}
+              disabled={isLoading}
+            />
+            <span>输入停顿后自动翻译</span>
+          </label>
+          <button
+            className="ghost-button glossary-load-button"
+            type="button"
+            onClick={onExportGlossary}
+            disabled={!selectedProjectId || isExportingGlossary || isLoadingProjects}
+          >
+            {isExportingGlossary ? "导出中..." : "导出术语"}
+          </button>
+        </div>
         <div className="glossary-row glossary-row--upload">
           <input
             className="glossary-file-input"
@@ -145,6 +175,21 @@ export function SourcePanel({
           </button>
         </div>
         <div className="glossary-row">
+          <label className="glossary-label" htmlFor="upload-mode">
+            导入方式
+          </label>
+          <select
+            id="upload-mode"
+            className="project-select"
+            value={uploadMode}
+            onChange={(event) => onUploadModeChange(event.target.value as "merge" | "replace")}
+            disabled={isLoading || isUploadingGlossary}
+          >
+            <option value="merge">自动合并保存</option>
+            <option value="replace">覆盖当前项目</option>
+          </select>
+        </div>
+        <div className="glossary-row">
           <span className="glossary-meta">
             {selectedGlossaryFileName
               ? `文件: ${selectedGlossaryFileName}`
@@ -163,7 +208,7 @@ export function SourcePanel({
 
       <div className="panel-footer">
         <p className="panel-footnote">
-          默认优先自然、常用表达，而非逐字直译。
+          默认优先自然、常用表达。开启自动翻译后，改文本或语言会自动刷新译文。
         </p>
         <button className="translate-button" type="button" onClick={onTranslate} disabled={disabled}>
           {isLoading ? "翻译中..." : "开始翻译"}

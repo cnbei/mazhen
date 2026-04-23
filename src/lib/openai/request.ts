@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import type { ZodTypeAny } from "zod";
 
 import { getApiKey, getBaseURL, getModelName, getTimeoutMs, getWireApi } from "@/lib/openai/client";
+import { markServerFailure, markServerHealthy } from "@/lib/server-status";
 
 const execFileAsync = promisify(execFile);
 
@@ -21,16 +22,21 @@ export async function runStructuredRequest<TSchema extends ZodTypeAny>({
   schema,
   systemPrompt,
   userPrompt,
+  performanceProfile = "default",
+  model,
 }: {
   schema: TSchema;
   schemaName: string;
   systemPrompt: string;
   userPrompt: string;
+  performanceProfile?: "default" | "fast";
+  model?: string;
 }) {
   const requestBody = {
-    model: getModelName(),
+    model: model || getModelName(),
     systemPrompt,
     userPrompt,
+    performanceProfile,
   };
 
   const payload = await runViaCurl(requestBody);
@@ -47,16 +53,17 @@ async function runViaCurl(requestBody: {
   model: string;
   systemPrompt: string;
   userPrompt: string;
+  performanceProfile: "default" | "fast";
 }) {
   const wireApi = normalizeWireApi(getWireApi());
   const apiUrl =
     wireApi === "responses"
       ? `${getBaseURL().replace(/\/$/, "")}/responses`
       : `${getBaseURL().replace(/\/$/, "")}/chat/completions`;
-  const timeoutSec = Math.max(8, Math.ceil(getTimeoutMs() / 1000));
+  const timeoutSec = Math.max(15, Math.ceil(getTimeoutMs() / 1000));
   let lastError: Error | null = null;
 
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
     const payloadFile = join(tmpdir(), `mx-payload-${randomUUID()}.json`);
     try {
       const payload = buildProviderPayload(requestBody, wireApi);
@@ -66,6 +73,8 @@ async function runViaCurl(requestBody: {
         "-sS",
         "--max-time",
         String(timeoutSec),
+        "--connect-timeout",
+        "10",
         "-X",
         "POST",
         apiUrl,
@@ -104,18 +113,21 @@ async function runViaCurl(requestBody: {
         throw new Error(providerError);
       }
 
+      markServerHealthy();
       return parsed;
     } catch (error) {
       const withStderr = error as { stderr?: string; message?: string };
       const stderr = (withStderr.stderr || "").trim();
-      const message = stderr ? `模型服务请求失败：${stderr}` : withStderr.message || "模型服务请求失败。";
+      const rawMessage = stderr ? `模型服务请求失败：${stderr}` : withStderr.message || "模型服务请求失败。";
+      const message = humanizeProviderError(rawMessage, attempt, 4, timeoutSec);
       lastError = new Error(message);
+      markServerFailure(message);
 
-      if (!isRetryableProviderError(message) || attempt === 3) {
+      if (!isRetryableProviderError(rawMessage) || attempt === 4) {
         throw lastError;
       }
 
-      await sleep(400 * attempt);
+      await sleep(900 * attempt);
     } finally {
       await fs.unlink(payloadFile).catch(() => undefined);
     }
@@ -125,7 +137,12 @@ async function runViaCurl(requestBody: {
 }
 
 function buildProviderPayload(
-  requestBody: { model: string; systemPrompt: string; userPrompt: string },
+  requestBody: {
+    model: string;
+    systemPrompt: string;
+    userPrompt: string;
+    performanceProfile: "default" | "fast";
+  },
   wireApi: "responses" | "chat_completions",
 ) {
   if (wireApi === "responses") {
@@ -135,8 +152,8 @@ function buildProviderPayload(
         { role: "system", content: requestBody.systemPrompt },
         { role: "user", content: requestBody.userPrompt },
       ],
-      reasoning: { effort: "medium" },
-      text: { verbosity: "medium" },
+      reasoning: { effort: requestBody.performanceProfile === "fast" ? "minimal" : "medium" },
+      text: { verbosity: requestBody.performanceProfile === "fast" ? "low" : "medium" },
     };
   }
 
@@ -146,7 +163,7 @@ function buildProviderPayload(
       { role: "system", content: requestBody.systemPrompt },
       { role: "user", content: requestBody.userPrompt },
     ],
-    temperature: 0.2,
+    temperature: requestBody.performanceProfile === "fast" ? 0 : 0.2,
   };
 }
 
@@ -208,11 +225,38 @@ function isRetryableProviderError(message: string) {
     normalized.includes("2064") ||
     normalized.includes("overloaded") ||
     normalized.includes("timed out") ||
+    normalized.includes("connection timed out") ||
     normalized.includes("curl: (28)") ||
+    normalized.includes("curl: (35)") ||
+    normalized.includes("curl: (52)") ||
+    normalized.includes("curl: (56)") ||
+    normalized.includes("empty reply from server") ||
     normalized.includes("html block page")
   );
 }
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function humanizeProviderError(message: string, attempt: number, maxAttempts: number, timeoutSec: number) {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("curl: (28)") || normalized.includes("timed out")) {
+    if (attempt < maxAttempts) {
+      return `模型响应较慢，正在自动重试（第 ${attempt}/${maxAttempts} 次，单次超时 ${timeoutSec} 秒）。`;
+    }
+
+    return `模型响应超时。服务端在 ${timeoutSec} 秒内没有返回结果，请稍后重试，或换一个更快的模型/代理。`;
+  }
+
+  if (normalized.includes("overloaded")) {
+    return "模型服务当前负载较高，请稍后再试。";
+  }
+
+  if (normalized.includes("html block page")) {
+    return "模型服务返回了异常拦截页，可能是代理或网关暂时不可用。";
+  }
+
+  return message;
 }

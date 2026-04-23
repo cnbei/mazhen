@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 import { parseGlossaryText } from "@/lib/glossary/parser";
 import { upsertGlossaryProjectTerms } from "@/lib/glossary/catalog";
 
 const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
 const MAX_PARSED_TERMS = 120000;
+const uploadModeSchema = z.enum(["merge", "replace"]).default("merge");
 
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const projectId = String(formData.get("project_id") ?? "").trim();
     const projectName = String(formData.get("project_name") ?? "").trim();
+    const mode = uploadModeSchema.parse(String(formData.get("mode") ?? "merge"));
     const file = formData.get("file");
 
     if (!projectId && !projectName) {
@@ -52,6 +55,7 @@ export async function POST(request: Request) {
       projectId,
       projectName,
       terms,
+      mode,
     });
 
     if (!result) {
@@ -62,11 +66,17 @@ export async function POST(request: Request) {
       project_id: result.project_id,
       project_name: result.project_name,
       created: result.created,
+      mode: result.mode,
       imported_count: result.imported_count,
       duplicate_count: result.duplicate_count,
+      updated_count: result.updated_count ?? 0,
       total_count: result.total_count,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "术语上传模式无效。" }, { status: 400 });
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "上传时发生未知错误。" },
       { status: 500 },

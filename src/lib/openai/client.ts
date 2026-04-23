@@ -40,6 +40,10 @@ export function getModelName() {
   return process.env.OPENAI_MODEL || "gpt-4.1-mini";
 }
 
+export function getFastModelName() {
+  return process.env.OPENAI_FAST_MODEL || process.env.OPENAI_MODEL || "gpt-4.1-mini";
+}
+
 export function getWireApi() {
   return process.env.OPENAI_WIRE_API || "chat_completions";
 }

@@ -39,6 +39,41 @@ export function buildTranslateSystemPrompt({
   ].join(" ");
 }
 
+export function buildTranslateFastSystemPrompt({
+  projectTone,
+  sourceLang,
+  targetLang,
+}: {
+  projectTone?: ProjectTone;
+  sourceLang: AppLanguageCode;
+  targetLang: AppLanguageCode;
+}) {
+  const sourceName = getPromptLanguageName(sourceLang);
+  const targetName = getPromptLanguageName(targetLang);
+
+  const toneInstruction =
+    targetLang === "de"
+      ? projectTone === "du"
+        ? "Use direct second-person singular style (du/dein) when the context addresses players."
+        : projectTone === "ihr"
+          ? "Use second-person plural style (ihr/euer) when the context addresses community users."
+          : "Use neutral standard German style."
+      : "Keep a consistent, natural style suitable for game and community localization.";
+
+  return [
+    `You translate text from ${sourceName} into natural, high-frequency ${targetName} for a professional localization workflow.`,
+    `Source language is expected to be primarily ${sourceName}, but detect source language robustly if mixed.`,
+    targetLang === "de" ? "Target locale is standard German (de-DE)." : "Target locale should be standard mainstream usage.",
+    toneInstruction,
+    "Prefer common usage, readability, and idiomatic phrasing over literal translation.",
+    "If glossary terms are provided, they are hard constraints. Use the exact glossary target for matched source terms.",
+    "Return JSON only with no markdown and no extra commentary.",
+    "Do not return selectable spans in this step.",
+    "All keys must always be present.",
+    "Keep the output concise and optimized for low latency.",
+  ].join(" ");
+}
+
 export function buildTranslateUserPrompt({
   sourceText,
   sourceLang,
@@ -84,5 +119,109 @@ export function buildTranslateUserPrompt({
     glossaryBlock,
     "",
     `source_text: ${sourceText}`,
+  ].join("\n");
+}
+
+export function buildTranslateFastUserPrompt({
+  sourceText,
+  sourceLang,
+  targetLang,
+  projectId,
+  glossaryTerms,
+  tmCandidates,
+}: {
+  sourceText: string;
+  sourceLang: AppLanguageCode;
+  targetLang: AppLanguageCode;
+  projectId?: string;
+  glossaryTerms?: Array<{ source: string; target: string }>;
+  tmCandidates?: Array<{ source_text: string; target_text: string; score: number; match_type: string }>;
+}) {
+  const glossaryBlock =
+    glossaryTerms && glossaryTerms.length > 0
+      ? glossaryTerms.map((term) => `${term.source} => ${term.target}`).join("\n")
+      : "none";
+  const tmBlock =
+    tmCandidates && tmCandidates.length > 0
+      ? tmCandidates
+          .map(
+            (item) =>
+              `[${item.match_type}:${(item.score * 100).toFixed(1)}] ${item.source_text} => ${item.target_text}`,
+          )
+          .join("\n")
+      : "none";
+
+  return [
+    `Translate the following text from ${getPromptLanguageName(sourceLang)} to ${getPromptLanguageName(targetLang)}.`,
+    "Return exactly one JSON object with keys: source_text, translated_text.",
+    "Do not include selectable spans in this step.",
+    "When glossary terms are present, prioritize terminology consistency over stylistic variation for those terms.",
+    "",
+    `source_lang: ${sourceLang}`,
+    `target_lang: ${targetLang}`,
+    `project_id: ${projectId || "none"}`,
+    "tm_candidates:",
+    tmBlock,
+    "",
+    "glossary_terms:",
+    glossaryBlock,
+    "",
+    `source_text: ${sourceText}`,
+  ].join("\n");
+}
+
+export function buildSpanExtractionSystemPrompt({
+  sourceLang,
+  targetLang,
+}: {
+  sourceLang: AppLanguageCode;
+  targetLang: AppLanguageCode;
+}) {
+  return [
+    `You analyze an existing translation from ${getPromptLanguageName(sourceLang)} to ${getPromptLanguageName(targetLang)}.`,
+    "Do not rewrite the translation unless absolutely necessary. Preserve translated_text as given whenever possible.",
+    "Choose 3 to 7 editable spans when useful.",
+    "Selectable spans must be exact substrings of translated_text and use correct character offsets.",
+    "Only mark words or short phrases whose alternatives can naturally change tone, register, or emphasis.",
+    "Do not mark punctuation-only spans.",
+    "Return JSON only with no markdown and no extra commentary.",
+    "All keys must always be present.",
+    "Use null for rationale when there is no note.",
+  ].join(" ");
+}
+
+export function buildSpanExtractionUserPrompt({
+  sourceText,
+  translatedText,
+  sourceLang,
+  targetLang,
+  projectId,
+  glossaryTerms,
+}: {
+  sourceText: string;
+  translatedText: string;
+  sourceLang: AppLanguageCode;
+  targetLang: AppLanguageCode;
+  projectId?: string;
+  glossaryTerms?: Array<{ source: string; target: string }>;
+}) {
+  const glossaryBlock =
+    glossaryTerms && glossaryTerms.length > 0
+      ? glossaryTerms.map((term) => `${term.source} => ${term.target}`).join("\n")
+      : "none";
+
+  return [
+    "Analyze the existing translation and return only editable target-language spans.",
+    "Do not produce replacement candidates yet.",
+    "Return exactly one JSON object with keys: translated_text, selectable_spans.",
+    "",
+    `source_lang: ${sourceLang}`,
+    `target_lang: ${targetLang}`,
+    `project_id: ${projectId || "none"}`,
+    "glossary_terms:",
+    glossaryBlock,
+    "",
+    `source_text: ${sourceText}`,
+    `translated_text: ${translatedText}`,
   ].join("\n");
 }

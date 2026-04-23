@@ -1,3 +1,6 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
 import type { GlossaryProject, GlossaryProjectDetail, GlossaryTerm, ProjectTone } from "@/types/glossary";
 
 type ProjectRecord = {
@@ -12,8 +15,10 @@ export type ReplaceGlossaryResult = {
   project_id: string;
   project_name: string;
   created: boolean;
+  mode?: "replace" | "merge";
   imported_count: number;
   duplicate_count: number;
+  updated_count?: number;
   total_count: number;
 };
 
@@ -72,11 +77,16 @@ const initialRecords: ProjectRecord[] = [
   },
 ];
 
-const recordsById = new Map<string, ProjectRecord>(
-  initialRecords.map((item) => [item.id, cloneProject(item)]),
-);
+const DATA_DIRECTORY = join(process.cwd(), ".data");
+const DATA_FILE = join(DATA_DIRECTORY, "glossary-projects.json");
+
+let recordsById = new Map<string, ProjectRecord>();
+
+initializeCatalog();
 
 export function listGlossaryProjects(): GlossaryProject[] {
+  refreshCatalogFromDisk();
+
   return [...recordsById.values()].map((item) => ({
     id: item.id,
     name: item.name,
@@ -87,6 +97,8 @@ export function listGlossaryProjects(): GlossaryProject[] {
 }
 
 export function getGlossaryProject(projectId: string): GlossaryProjectDetail | null {
+  refreshCatalogFromDisk();
+
   const project = recordsById.get(projectId);
 
   if (!project) {
@@ -109,12 +121,125 @@ export function replaceGlossaryTerms(
   projectId: string,
   terms: GlossaryTerm[],
 ): ReplaceGlossaryResult | null {
+  refreshCatalogFromDisk();
+
   const project = recordsById.get(projectId);
 
   if (!project) {
     return null;
   }
 
+  const { terms: deduped, duplicateCount } = normalizeGlossaryTerms(terms);
+
+  project.terms = deduped;
+  persistCatalogToDisk();
+
+  return {
+    project_id: projectId,
+    project_name: project.name,
+    created: false,
+    mode: "replace",
+    imported_count: deduped.length,
+    duplicate_count: duplicateCount,
+    total_count: deduped.length,
+  };
+}
+
+export function mergeGlossaryTerms(
+  projectId: string,
+  terms: GlossaryTerm[],
+): ReplaceGlossaryResult | null {
+  refreshCatalogFromDisk();
+
+  const project = recordsById.get(projectId);
+
+  if (!project) {
+    return null;
+  }
+
+  const { terms: deduped, duplicateCount } = normalizeGlossaryTerms(terms);
+  const nextTerms = project.terms.map((term) => ({ ...term }));
+  const existingIndex = new Map(nextTerms.map((term, index) => [term.source.toLowerCase(), index]));
+  let importedCount = 0;
+  let updatedCount = 0;
+
+  for (const term of deduped) {
+    const key = term.source.toLowerCase();
+    const existingPosition = existingIndex.get(key);
+
+    if (existingPosition === undefined) {
+      existingIndex.set(key, nextTerms.length);
+      nextTerms.push(term);
+      importedCount += 1;
+      continue;
+    }
+
+    const existing = nextTerms[existingPosition];
+    if (existing.target !== term.target) {
+      nextTerms[existingPosition] = term;
+      updatedCount += 1;
+    }
+  }
+
+  project.terms = nextTerms;
+  persistCatalogToDisk();
+
+  return {
+    project_id: projectId,
+    project_name: project.name,
+    created: false,
+    mode: "merge",
+    imported_count: importedCount,
+    duplicate_count: duplicateCount,
+    updated_count: updatedCount,
+    total_count: nextTerms.length,
+  };
+}
+
+export function upsertGlossaryProjectTerms({
+  projectId,
+  projectName,
+  terms,
+  mode = "merge",
+}: {
+  projectId?: string;
+  projectName?: string;
+  terms: GlossaryTerm[];
+  mode?: "replace" | "merge";
+}): ReplaceGlossaryResult | null {
+  refreshCatalogFromDisk();
+
+  const trimmedProjectId = projectId?.trim();
+  if (trimmedProjectId) {
+    return mode === "replace"
+      ? replaceGlossaryTerms(trimmedProjectId, terms)
+      : mergeGlossaryTerms(trimmedProjectId, terms);
+  }
+
+  const fallbackName = projectName?.trim() || "我的术语库";
+  const nextId = buildUniqueProjectId(fallbackName);
+  const createdProject: ProjectRecord = {
+    id: nextId,
+    name: fallbackName,
+    description: "用户上传术语库",
+    tone: "neutral",
+    terms: [],
+  };
+  recordsById.set(nextId, createdProject);
+  persistCatalogToDisk();
+
+  const replaced = replaceGlossaryTerms(nextId, terms);
+  if (!replaced) {
+    return null;
+  }
+
+  return {
+    ...replaced,
+    created: true,
+  };
+}
+
+function normalizeGlossaryTerms(terms: GlossaryTerm[]) {
   const deduped: GlossaryTerm[] = [];
   const seen = new Set<string>();
   let duplicateCount = 0;
@@ -137,52 +262,50 @@ export function replaceGlossaryTerms(
     deduped.push({ source, target });
   }
 
-  project.terms = deduped;
-
-  return {
-    project_id: projectId,
-    project_name: project.name,
-    created: false,
-    imported_count: deduped.length,
-    duplicate_count: duplicateCount,
-    total_count: deduped.length,
-  };
+  return { terms: deduped, duplicateCount };
 }
 
-export function upsertGlossaryProjectTerms({
-  projectId,
-  projectName,
-  terms,
-}: {
-  projectId?: string;
-  projectName?: string;
-  terms: GlossaryTerm[];
-}): ReplaceGlossaryResult | null {
-  const trimmedProjectId = projectId?.trim();
-  if (trimmedProjectId) {
-    return replaceGlossaryTerms(trimmedProjectId, terms);
+function initializeCatalog() {
+  recordsById = new Map(initialRecords.map((item) => [item.id, cloneProject(item)]));
+  refreshCatalogFromDisk();
+}
+
+function refreshCatalogFromDisk() {
+  recordsById = new Map(initialRecords.map((item) => [item.id, cloneProject(item)]));
+
+  if (!existsSync(DATA_FILE)) {
+    return;
   }
 
-  const fallbackName = projectName?.trim() || "我的术语库";
-  const nextId = buildUniqueProjectId(fallbackName);
-  const createdProject: ProjectRecord = {
-    id: nextId,
-    name: fallbackName,
-    description: "用户上传术语库",
-    tone: "neutral",
-    terms: [],
-  };
-  recordsById.set(nextId, createdProject);
+  try {
+    const raw = readFileSync(DATA_FILE, "utf-8");
+    const parsed = JSON.parse(raw) as { projects?: ProjectRecord[] };
 
-  const replaced = replaceGlossaryTerms(nextId, terms);
-  if (!replaced) {
-    return null;
+    for (const project of parsed.projects ?? []) {
+      if (!project?.id || !project?.name || !Array.isArray(project.terms)) {
+        continue;
+      }
+
+      recordsById.set(project.id, cloneProject(project));
+    }
+  } catch {
+    recordsById = new Map(initialRecords.map((item) => [item.id, cloneProject(item)]));
   }
+}
 
-  return {
-    ...replaced,
-    created: true,
-  };
+function persistCatalogToDisk() {
+  mkdirSync(DATA_DIRECTORY, { recursive: true });
+  writeFileSync(
+    DATA_FILE,
+    JSON.stringify(
+      {
+        projects: [...recordsById.values()],
+      },
+      null,
+      2,
+    ),
+    "utf-8",
+  );
 }
 
 function buildUniqueProjectId(name: string) {
